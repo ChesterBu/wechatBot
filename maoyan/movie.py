@@ -43,15 +43,7 @@ def decode_font():
 
     dhtml = requests.get(link).text
     msg = {}
-
     dsoup = BeautifulSoup(dhtml, 'lxml')
-    msg['name'] = dsoup.find(class_='name').text
-    ell = dsoup.find_all('li', {'class': 'ellipsis'})
-    msg['type'] = ell[0].text
-    msg['country'] = ell[1].text.split('/')[0].strip()
-    msg['length'] = ell[1].text.split('/')[1].strip()
-    msg['release-time'] = ell[2].text[:10]
-
     # 下载字体文件
     woff = regex_woff.search(dhtml).group()
     wofflink = 'http:' + woff
@@ -71,7 +63,7 @@ def decode_font():
         msg['score-num'] = get_font(font, ms[1])
         msg['box-office'] = get_font(font, ms[2]) + dsoup.find('span', class_='unit').text
         msg['price'] = [get_font(font, i) for i in ms[3:]]
-    return msg
+    print(msg)
 
 
 def get_font(newfont, text):
