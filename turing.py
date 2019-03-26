@@ -22,4 +22,4 @@ def get_response(msg):
 
 
 if __name__ == '__main__':
-    print(get_response('haha'))
+    print(get_response('你是谁？'))

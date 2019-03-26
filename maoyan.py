@@ -62,6 +62,7 @@ class MaoYan:
         rs.close()
 
     def get_info(self):
+
         response_list = grequests.map((grequests.get(u, cookies=self.cookies) for u in self.href_list))
         for rs in response_list:
             html = BeautifulSoup(rs.text, 'html.parser')
