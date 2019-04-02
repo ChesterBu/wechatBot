@@ -44,3 +44,5 @@
 4.font反爬 https://blog.csdn.net/guliang21/article/details/87930190
 5.图片存储
 6.长链接
+7.greenlet问题
+8.阻塞与非阻塞的问题  apscheduler.schedulers.background

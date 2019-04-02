@@ -74,7 +74,7 @@ def main():
             reply = '机器人自动回复:'+get_response(text)
         itchat.send(reply, toUserName=user)
 
-    itchat.auto_login(hotReload=True, exitCallback=schedule.shutdown)
+    itchat.auto_login(exitCallback=schedule.shutdown)
     itchat.run()
 
 
