@@ -5,7 +5,7 @@ from turing import get_response
 from weather import get_forecast
 from package import get_package
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from maoyan import MaoYan
 
 # class WeChatBot:
 #
@@ -33,6 +33,7 @@ def main():
 
     @itchat.msg_register(TEXT)
     def text_reply(msg):
+        m = MaoYan()
         user = msg['FromUserName']
         text = msg['Text']
         if re.search(r"天气查询", text) or re.search(r"气温", text):
@@ -55,6 +56,11 @@ def main():
                 reply = get_package(pack_num)
             except:
                 reply = "查询快递请输入：快递+运单号，如：快递+12345"
+        elif re.search(r"电影", text) or re.search(r"正在热映", text):
+            try:
+                reply = m.movies[0]['name']
+            except:
+                reply = "查询电影请输入:电影或正在热映"
         elif re.search(r"定时", text):
             try:
                 temp = text.split('+')[1:]
@@ -72,7 +78,7 @@ def main():
 
         else:
             reply = '机器人自动回复:'+get_response(text)
-        itchat.send(reply, toUserName=user)
+        itchat.send(reply, toUserName='filehelper')
 
     itchat.auto_login(exitCallback=schedule.shutdown)
     itchat.run()

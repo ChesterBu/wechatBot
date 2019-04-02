@@ -61,43 +61,48 @@ class MaoYan:
         self.href_list = []
         self._DOMAIN = 'https://maoyan.com'
         self.cookies = dict(ci='42')  # 改变城市
-        self.get_hot_movies()
-        self.get_info()
         loop = asyncio.get_event_loop()
+        a = time.perf_counter()
+        loop.run_until_complete(self.get_hot_movies())
+        print("Time 1 used:", time.perf_counter() - a)
+        a = time.perf_counter()
+        loop.run_until_complete(self.get_info())
+        print("Time 2 used:", time.perf_counter() - a)
+        a = time.perf_counter()
         tasks = [asyncio.ensure_future(self.get_img()), asyncio.ensure_future(self.get_encode_info())]
         loop.run_until_complete(asyncio.wait(tasks))
+        print("Time 3 used:", time.perf_counter() - a)
         loop.close()
 
-    def get_hot_movies(self):
-        urls = 'https://maoyan.com/films?showType=1'
-        rs = requests.get(urls, cookies=self.cookies)
-        html = BeautifulSoup(rs.text, 'html.parser')
-        hot_list = html.find_all(attrs={'class': 'channel-detail movie-item-title'})
+    # 1
+    async def get_hot_movies(self):
+        url = 'https://maoyan.com/films?showType=1'
+        rs = await fetch(url)
+        html = BeautifulSoup(rs, 'html.parser')
+        hot_list = html.find_all(attrs={'class': 'movie-item'})
         for child in hot_list:
-            a = child.contents[1]
-            self.href_list.append(self._DOMAIN + a.get('href'))
-        rs.close()
+            href = child.contents[1].get('href')
+            if child.text.find('购票') != -1:
+                self.href_list.append(self._DOMAIN + href)
 
 
     # 2
-    def get_info(self):
+    async def get_info(self):
         for url in self.href_list:
-            rs = requests.get(url, cookies=self.cookies)
-            html = BeautifulSoup(rs.text, 'html.parser')
+            rs = await fetch(url)
+            html = BeautifulSoup(rs, 'html.parser')
             film = html.find(attrs={'class': 'btn buy'})
-            if film:
-                msg = dict()
-                msg['name'] = html.find(class_='name').text
-                ell = html.find_all('li', {'class': 'ellipsis'})
-                msg['type'] = ell[0].text
-                msg['country'] = ell[1].text.split('/')[0].strip()
-                msg['length'] = ell[1].text.split('/')[1].strip()
-                msg['release-time'] = ell[2].text[:10]
-                msg['synopsis'] = html.find(attrs={'class': 'dra'}).string
-                msg['img_url'] = html.find(attrs={'class': 'avatar'})['src']
-                msg['film_url'] = self._DOMAIN + film['href']
-                self.movies.append(msg)
-            rs.close()
+            msg = dict()
+            msg['name'] = html.find(class_='name').text
+            msg['synopsis'] = html.find(attrs={'class': 'dra'}).string
+            msg['img_url'] = html.find(attrs={'class': 'avatar'})['src']
+            ell = html.find_all('li', {'class': 'ellipsis'})
+            msg['type'] = ell[0].text
+            msg['country'] = ell[1].text.split('/')[0].strip()
+            msg['length'] = ell[1].text.split('/')[1].strip()
+            msg['release-time'] = ell[2].text[:10]
+            msg['film_url'] = self._DOMAIN + film['href']
+            self.movies.append(msg)
 
     # 3
     async def get_img(self):
