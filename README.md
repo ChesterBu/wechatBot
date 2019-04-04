@@ -38,8 +38,8 @@
 
 ## 论文
 
-1.itchat
-2.多并发
+1.itchat 
+2.多并发 aiohttp asyncio
 3.爬虫
 4.font反爬 https://blog.csdn.net/guliang21/article/details/87930190
 5.图片存储
