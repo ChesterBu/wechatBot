@@ -5,7 +5,10 @@ from fontTools.ttLib import TTFont
 import os
 import time
 import asyncio
+import json
 from aiohttp import ClientSession
+from util import getrand
+
 
 os.makedirs('font', exist_ok=True)
 regex_woff = re.compile("(?<=url\(').*\.woff(?='\))")
@@ -37,7 +40,9 @@ class MaoYan:
             'country': '中国大陆',
             'length': '175分钟',
             'release-time': '2019-03-22',
+
             'synopsis': '年轻的刘耀军（王景春 饰）和沈英明（徐程 饰）两家人本是挚友，两家儿子沈浩和刘星在郊外嬉戏中，耀军的儿子刘星，隐藏的真相终将因为年轻一代人的坦荡而揭开。岁月流逝，生命滚滚向前……',
+
             'cinema': [
                 {'name': '香港未来主题影院', 'address': '地址：碑林区长安立交东北角香港未来影院二楼', 'price': '¥36起'},
                 {'name': 'CGV影城(万象城店)', 'address': '地址：未央区三桥新街1076号华润万象城4层', 'price': '¥41起'},
@@ -73,6 +78,29 @@ class MaoYan:
         loop.run_until_complete(asyncio.wait(tasks))
         print("Time 3 used:", time.perf_counter() - a)
         loop.close()
+        self.storage()
+
+    def storage(self):
+        data = []
+        # 电影基本信息
+        str1 = "电影名:{name},电影类型:{type},时长:{length},上映时间:{release-time}"
+        # 电影简介
+        str2 = "{synopsis}"
+        # 电影海报
+        str3 = "imgs/{img_url}.jpg"
+        # 电影院
+        str4 = "影院名:{name},{address},票价:{price}"
+        for m in self.movies:
+            basic = str1.format(**m)
+            intro = str2.format(**m)
+            img = str3.format(**m)
+            temp = m['cinema']
+            if isinstance(temp, list):
+                cinema = [str4.format(**i) for i in temp]
+            else:
+                cinema = temp
+            data.append(dict(basic=basic, intro=intro, img=img, cinema=cinema))
+        json.dump(data, open('m.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
     # 1
     async def get_hot_movies(self):
@@ -84,7 +112,6 @@ class MaoYan:
             href = child.contents[1].get('href')
             if child.text.find('购票') != -1:
                 self.href_list.append(self._DOMAIN + href)
-
 
     # 2
     async def get_info(self):
@@ -111,11 +138,12 @@ class MaoYan:
         for m in self.movies:
             url = re.sub(pattern, '160w_220h', m['img_url'])
             name = m['name']
-            urls.append(dict(url=url, name=name), )
-            m.pop('img_url')
+            imgdir = getrand(15)
+            urls.append(dict(url=url, name=name,imgdir=imgdir), )
+            m['img_url'] = imgdir
         for d in urls:
             rs = await fetch_res(d['url'])
-            open('imgs/' + d['name'] + '.png', 'wb').write(rs)
+            open('imgs/' + d['imgdir']+'.jpg', 'wb').write(rs)
 
     # 3
     async def get_encode_info(self):
@@ -160,10 +188,6 @@ class MaoYan:
 
 
 if __name__ == '__main__':
-    start = time.perf_counter()
     my = MaoYan()
-    for m in my.movies:
-        print(m)
-    print(len(my.movies))
-    elapsed = (time.perf_counter() - start)
-    print("Time used:", elapsed)
+    print(my.movies[0])
+
