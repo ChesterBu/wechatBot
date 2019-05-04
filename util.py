@@ -1,6 +1,7 @@
 import random
+from aiohttp import ClientSession
 
-def getrand(num):
+def get_rand(num):
     s = ""
     for i in range(num):
         n = random.randint(1, 2) #n = 1  生成数字  n=2  生成字母
@@ -17,3 +18,17 @@ def getrand(num):
                 numb = chr(96+cc)
                 s += numb
     return s
+
+
+# 获取资源如文件，图片
+async def fetch_res(url):
+    async with ClientSession(cookies=dict(ci='42')) as session:
+        async with session.get(url) as response:
+            return await response.read()
+
+
+# 获取文本
+async def fetch(url):
+    async with ClientSession(cookies=dict(ci='42')) as session:
+        async with session.get(url) as response:
+            return await response.text()

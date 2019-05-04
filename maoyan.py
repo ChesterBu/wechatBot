@@ -1,34 +1,11 @@
-import requests
-import re
 from bs4 import BeautifulSoup
-from fontTools.ttLib import TTFont
 import os
 import time
 import asyncio
 import json
-from aiohttp import ClientSession
-from util import getrand
-
-
-os.makedirs('font', exist_ok=True)
-regex_woff = re.compile("(?<=url\(').*\.woff(?='\))")
-regex_font = re.compile(r'(?<=\\u).{4}')
-
-basefont = TTFont('base.woff')
-fontdict = {'uniF30D': '0', 'uniE6A2': '8', 'uniEA94': '9', 'uniE9B1': '2', 'uniF620': '6',
-            'uniEA56': '3', 'uniEF24': '1', 'uniF53E': '4', 'uniF170': '5', 'uniEE37': '7'}
-
-
-async def fetch_res(url):
-    async with ClientSession(cookies=dict(ci='42')) as session:
-        async with session.get(url) as response:
-            return await response.read()
-
-
-async def fetch(url):
-    async with ClientSession(cookies=dict(ci='42')) as session:
-        async with session.get(url) as response:
-            return await response.text()
+import shutil
+from util import fetch, fetch_res
+from decodeFont import decode_font, download_font
 
 
 class MaoYan:
@@ -74,7 +51,7 @@ class MaoYan:
         loop.run_until_complete(self.get_info())
         print("Time 2 used:", time.perf_counter() - a)
         a = time.perf_counter()
-        tasks = [asyncio.ensure_future(self.get_img()), asyncio.ensure_future(self.get_encode_info())]
+        tasks = [asyncio.ensure_future(self.get_img()), asyncio.ensure_future(self.get_encoded_info())]
         loop.run_until_complete(asyncio.wait(tasks))
         print("Time 3 used:", time.perf_counter() - a)
         loop.close()
@@ -99,7 +76,7 @@ class MaoYan:
                 cinema = [str4.format(**i) for i in temp]
             else:
                 cinema = temp
-            data.append(dict(basic=basic, intro=intro, img=img, cinema=cinema))
+            data.append(dict(name=m['name'], basic=basic, intro=intro, img=img, cinema=cinema))
         json.dump(data, open('m.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
     # 1
@@ -133,33 +110,27 @@ class MaoYan:
 
     # 3
     async def get_img(self):
-        pattern = re.compile('464w_644h')
         urls = []
+        shutil.rmtree('imgs')
+        os.mkdir('imgs')
         for m in self.movies:
-            url = re.sub(pattern, '160w_220h', m['img_url'])
+            url = m['img_url']
             name = m['name']
-            imgdir = getrand(15)
-            urls.append(dict(url=url, name=name,imgdir=imgdir), )
+            imgdir = str(hash(name))
+            urls.append(dict(url=url, name=name, imgdir=imgdir), )
             m['img_url'] = imgdir
         for d in urls:
             rs = await fetch_res(d['url'])
             open('imgs/' + d['imgdir']+'.jpg', 'wb').write(rs)
 
     # 3
-    async def get_encode_info(self):
+    async def get_encoded_info(self):
         urls = [a['film_url'] for a in self.movies]
         for url in urls:
             index = urls.index(url)
             dhtml = await fetch(url)
             soup = BeautifulSoup(dhtml.encode('utf-8'), "html.parser")
-            woff = regex_woff.search(dhtml).group()
-            wofflink = 'http:' + woff
-            localname = 'font/' + os.path.basename(wofflink)
-            if not os.path.exists(localname):
-                rs = await fetch_res(wofflink)
-                with open(localname, 'wb+') as sw:
-                    sw.write(rs)
-            font = TTFont(localname)
+            font = await download_font(dhtml)
             tag = soup.find_all(attrs={'class': 'cinema-cell'})
             cinema_list = []
             if len(tag) > 0:
@@ -168,23 +139,10 @@ class MaoYan:
                     cinema['name'] = cell.find('a', attrs={'class': 'cinema-name'}).get_text()
                     cinema['address'] = cell.find('p', attrs={'class': 'cinema-address'}).get_text()
                     price = cell.find('span', {'class': 'stonefont'}).get_text()
-                    cinema['price'] = '¥' + self.get_font(font, price) + '起'
+                    cinema['price'] = '¥' + decode_font(font, price) + '起'
                     cinema_list.append(cinema)
             self.movies[index]['cinema'] = cinema_list if len(cinema_list) > 0 else '暂无影院信息'
             self.movies[index].pop('film_url')
-
-    def get_font(self, newfont, text):
-        text = repr(text)
-        ms = regex_font.findall(text)
-        for m in ms:
-            text = text.replace(fr'\u{m}', self.get_num(newfont, f'uni{m.upper()}'))
-        return eval(text)
-
-    def get_num(self, newfont, name):
-        uni = newfont['glyf'][name]
-        for k, v in fontdict.items():
-            if uni == basefont['glyf'][k]:
-                return v
 
 
 if __name__ == '__main__':
